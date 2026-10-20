@@ -31,11 +31,11 @@ SG_GROUP=$(aws ec2 create-security-group \
 
 echo "Security Group ID: $SG_GROUP"
 
-SG_GROUP_OP=aws ec2 authorize-security-group-ingress \
+SG_GROUP_OP=$(aws ec2 authorize-security-group-ingress \
   --group-id "$SG_GROUP" \
   --protocol tcp \
   --port 22 \
   --cidr "${MY_IP}/32" \
-  --region "$REGION"
+  --region "$REGION")
   
 echo "This $SG_GROUP Security Group : $SG_GROUP_OP"
