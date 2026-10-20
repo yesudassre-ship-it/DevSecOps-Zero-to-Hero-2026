@@ -27,7 +27,7 @@ SG_GROUP_NAME=(aws ec2 describe-security-groups \
   --output table)
 
 # Create only if it does not exist  
-if ($SG_GROUP_NAME=!ssh-my-system) then
+if [ $SG_GROUP_NAME != "ssh-my-system" ]; then
 SG_GROUP_NAME=ssh-my-system
 SG_GROUP=$(aws ec2 create-security-group \
   --group-name "$SG_NAME" \
