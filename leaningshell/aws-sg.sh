@@ -10,7 +10,15 @@ VPC_ID=$(aws ec2 describe-vpcs \
   --filters "Name=isDefault,Values=true" \
   --query 'Vpcs[0].VpcId' \
   --output text)
+
+if [[ "$VPC_ID" == "None" || -z "$VPC_ID" ]]; then
+  echo "ERROR: Default VPC not found in $REGION"
+  exit 1
+fi
+
 echo "Defauly VPC ID: $VPC_ID"
+
+# Check whether Security Group exists in the default VPC
 
 SG_GROUP_NAME=(aws ec2 describe-security-groups \
   --region $REGION \
@@ -18,7 +26,8 @@ SG_GROUP_NAME=(aws ec2 describe-security-groups \
   --query 'SecurityGroups[*].[GroupId,GroupName,VpcId]' \
   --output table)
 
- if ($SG_GROUP_NAME=!ssh-my-system) then
+# Create only if it does not exist  
+if ($SG_GROUP_NAME=!ssh-my-system) then
 SG_GROUP_NAME=ssh-my-system
 SG_GROUP=$(aws ec2 create-security-group \
   --group-name "$SG_NAME" \
@@ -30,8 +39,9 @@ SG_GROUP=$(aws ec2 create-security-group \
   echo "$SG_GROUP created for ssh login from $MY_IP alone"
  else
    echo "$SG_GROUP exits and can be accessble  from $MY_IP alone"
-  exit()
 fi   
+
+# Authorize SSH from your public IPv4
 
 SG_GROUP_OP=$(aws ec2 authorize-security-group-ingress \
   --group-id "$SG_GROUP" \
