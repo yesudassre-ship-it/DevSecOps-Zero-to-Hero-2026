@@ -1,12 +1,17 @@
 #!/bin/bash
 
-MY_IP=$(curl -s https://checkip.amazonaws.com)
-echo "$MY_IP"
+set -e
 
 REGION="us-east-1"
+SG_NAME="ssh-my-system"
 
+# Get public IPv4
+MY_IP=$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')
+echo "My Public IP: $MY_IP"
+
+# Find default VPC
 VPC_ID=$(aws ec2 describe-vpcs \
-  --region "us-east-1" \
+  --region "$REGION" \
   --filters "Name=isDefault,Values=true" \
   --query 'Vpcs[0].VpcId' \
   --output text)
@@ -16,40 +21,53 @@ if [[ "$VPC_ID" == "None" || -z "$VPC_ID" ]]; then
   exit 1
 fi
 
-echo "Defauly VPC ID: $VPC_ID"
+echo "Default VPC ID: $VPC_ID"
 
 # Check whether Security Group exists in the default VPC
-
-SG_NAME=ssh-my-system
-SG_GROUP_NAME=(aws ec2 describe-security-groups \
-  --region $REGION \
-  --filters "Name=group-name,Values=$SG_NAME" \
-   --query 'SecurityGroups[0].GroupId' \
-  --output table)
-
-# Create only if it does not exist  
-if [ $SG_GROUP_NAME != "$SG_NAME" ]; then
-
-SG_NAME=$(aws ec2 create-security-group \
-  --group-name "$SG_NAME" \
-  --description "Allow SSH from my system IPv4 only" \
-  --vpc-id "$VPC_ID" \
+SG_GROUP=$(aws ec2 describe-security-groups \
   --region "$REGION" \
-  --query 'groups' \
+  --filters \
+    "Name=group-name,Values=$SG_NAME" \
+    "Name=vpc-id,Values=$VPC_ID" \
+  --query 'SecurityGroups[0].GroupId' \
   --output text)
 
-  echo "$SG_GROUP created for ssh login from $MY_IP alone"
- else
-   echo "$SG_GROUP exits and can be accessble  from $MY_IP alone"
-fi   
+# Create only if it does not exist
+if [[ "$SG_GROUP" == "None" || -z "$SG_GROUP" ]]; then
 
-# Authorize SSH from your public IPv4
+  SG_GROUP=$(aws ec2 create-security-group \
+    --group-name "$SG_NAME" \
+    --description "Allow SSH from my system IPv4 only" \
+    --vpc-id "$VPC_ID" \
+    --region "$REGION" \
+    --query 'GroupId' \
+    --output text)
 
-SG_GROUP_OP=$(aws ec2 authorize-security-group-ingress \
-  --group-id "$SG_GROUP" \
-  --protocol tcp \
-  --port 22 \
-  --cidr "${MY_IP}/32" \
-  --region "$REGION")
-  
-echo "This $SG_GROUP Security Group : $SG_GROUP_OP"
+  echo "Created Security Group: $SG_GROUP"
+
+else
+  echo "Security Group already exists: $SG_GROUP"
+fi
+
+# Check whether SSH rule already exists
+SSH_RULE=$(aws ec2 describe-security-groups \
+  --group-ids "$SG_GROUP" \
+  --region "$REGION" \
+  --query "SecurityGroups[0].IpPermissions[?IpProtocol=='tcp' && FromPort==\`22\` && ToPort==\`22\`].IpRanges[?CidrIp=='${MY_IP}/32'].CidrIp | [0][0]" \
+  --output text)
+
+# Add SSH rule only if missing
+if [[ "$SSH_RULE" == "None" || -z "$SSH_RULE" ]]; then
+  aws ec2 authorize-security-group-ingress \
+    --group-id "$SG_GROUP" \
+    --protocol tcp \
+    --port 22 \
+    --cidr "${MY_IP}/32" \
+    --region "$REGION"
+
+  echo "SSH access added for ${MY_IP}/32"
+else
+  echo "SSH access already exists for ${MY_IP}/32"
+fi
+
+echo "Security Group ID: $SG_GROUP"
