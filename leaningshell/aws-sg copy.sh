@@ -4,28 +4,21 @@ MY_IP=$(curl -s https://checkip.amazonaws.com)
 echo "$MY_IP"
 
 REGION="us-east-1"
-
-VPC_ID=$(aws ec2 describe-vpcs \
-  --region "us-east-1" \
-  --filters "Name=isDefault,Values=true" \
-  --query 'Vpcs[0].VpcId' \
-  --output text)
-
-if [[ "$VPC_ID" == "None" || -z "$VPC_ID" ]]; then
-  echo "ERROR: Default VPC not found in $REGION"
-  exit 1
-fi
-
-echo "Defauly VPC ID: $VPC_ID"
+SG_NAME="ssh-my-system"
 
 # Check whether Security Group exists in the default VPC
 
-SG_NAME=ssh-my-system
-SG_GROUP_NAME=(aws ec2 describe-security-groups \
-  --region $REGION \
+SG_ID=$(aws ec2 describe-security-groups \
+  --region "$REGION" \
   --filters "Name=group-name,Values=$SG_NAME" \
   --query 'SecurityGroups[0].GroupId' \
   --output text)
+
+if [[ "$SG_ID" != "None" && -n "$SG_ID" ]]; then
+    echo "Security Group exists: $SG_NAME"
+    echo "Security Group ID: $SG_ID"
+else
+    echo "Security Group does not
 
 # Create only if it does not exist  
 if [ $SG_GROUP_NAME != "$SG_NAME" ]; then
