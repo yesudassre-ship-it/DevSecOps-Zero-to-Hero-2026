@@ -30,7 +30,7 @@ SG_GROUP_NAME=(aws ec2 describe-security-groups \
 if [ $SG_GROUP_NAME != "ssh-my-system" ]; then
 SG_GROUP_NAME=ssh-my-system
 SG_GROUP=$(aws ec2 create-security-group \
-  --group-name "$SG_NAME" \
+  --group-name "$SG_GROUP_NAME" \
   --description "Allow SSH from my system IPv4 only" \
   --vpc-id "$VPC_ID" \
   --region "$REGION" \
