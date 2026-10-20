@@ -24,10 +24,9 @@ SG_NAME=ssh-my-system
 SG_GROUP_NAME=(aws ec2 describe-security-groups \
   --region $REGION \
   --filters "Name=group-name,Values=$SG_NAME" \
-  --query 'SecurityGroups[*].[GroupId,GroupName,VpcId]' \
+   --query 'SecurityGroups[0].GroupId' \
   --output table)
 
- 
 # Create only if it does not exist  
 if [ $SG_GROUP_NAME != "$SG_NAME" ]; then
 
