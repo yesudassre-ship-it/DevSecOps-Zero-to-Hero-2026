@@ -12,15 +12,14 @@ VPC_ID=$(aws ec2 describe-vpcs \
   --output text)
 echo "Defauly VPC ID: $VPC_ID"
 
-VPC_ID=$(aws ec2 describe-vpcs \
-  --region "$REGION" \
-  --filters "Name=isDefault,Values=true" \
-  --query 'Vpcs[0].VpcId' \
-  --output text)
-echo "Defauly VPC ID: $VPC_ID"
+SG_GROUP_NAME=(aws ec2 describe-security-groups \
+  --region $REGION \
+  --filters "Name=group-name,Values=ssh-my-system" \
+  --query 'SecurityGroups[*].[GroupId,GroupName,VpcId]' \
+  --output table)
 
-SG_NAME="ssh-my-system"
-
+ if ($SG_GROUP_NAME=!ssh-my-system) then
+SG_GROUP_NAME=ssh-my-system
 SG_GROUP=$(aws ec2 create-security-group \
   --group-name "$SG_NAME" \
   --description "Allow SSH from my system IPv4 only" \
@@ -28,8 +27,11 @@ SG_GROUP=$(aws ec2 create-security-group \
   --region "$REGION" \
   --query 'groups' \
   --output text)
-
-echo "Security Group ID: $SG_GROUP"
+  echo "$SG_GROUP created for ssh login from $MY_IP alone"
+ else
+   echo "$SG_GROUP exits and can be accessble  from $MY_IP alone"
+  exit()
+fi   
 
 SG_GROUP_OP=$(aws ec2 authorize-security-group-ingress \
   --group-id "$SG_GROUP" \
